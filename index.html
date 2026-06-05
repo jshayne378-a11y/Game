@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Starfall Frontier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="game-container">
+  <!-- Animated star background -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- ============ MAIN MENU ============ -->
+  <div id="screen-menu" class="screen active">
+    <div class="scanlines"></div>
+    <div class="menu-content">
+      <div class="title-block">
+        <div class="title-star">★</div>
+        <div class="title-line1">STARFALL</div>
+        <div class="title-line2">FRONTIER</div>
+        <div class="title-sub">A SPACE RPG ODYSSEY</div>
+      </div>
+      <div class="menu-ship-wrap">
+        <canvas id="menu-ship-canvas" width="160" height="80"></canvas>
+      </div>
+      <div class="menu-buttons">
+        <button class="menu-btn" id="btn-new-game">▶  NEW GAME</button>
+        <button class="menu-btn" id="btn-continue" disabled>▶  CONTINUE</button>
+        <button class="menu-btn" id="btn-achievements">★  ACHIEVEMENTS</button>
+        <button class="menu-btn" id="btn-about">?  ABOUT</button>
+      </div>
+      <div class="menu-version">v1.0  ·  USE KEYBOARD OR CLICK</div>
+    </div>
+  </div>
+
+  <!-- ============ HUD (visible during play) ============ -->
+  <div id="hud" class="hidden">
+    <div id="hud-left">
+      <div class="hud-name" id="hud-name">COMMANDER</div>
+      <div class="hud-bars">
+        <div class="bar-row">
+          <span class="bar-lbl hp-lbl">HP</span>
+          <div class="bar-wrap"><div class="bar-fill hp-fill" id="hud-hp-bar"></div></div>
+          <span class="bar-num" id="hud-hp-num">100/100</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-lbl en-lbl">EN</span>
+          <div class="bar-wrap"><div class="bar-fill en-fill" id="hud-en-bar"></div></div>
+          <span class="bar-num" id="hud-en-num">50/50</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-lbl xp-lbl">XP</span>
+          <div class="bar-wrap"><div class="bar-fill xp-fill" id="hud-xp-bar"></div></div>
+          <span class="bar-num" id="hud-lv-num">LV.1</span>
+        </div>
+      </div>
+    </div>
+    <div id="hud-center">
+      <div id="hud-sector"></div>
+      <div id="hud-room"></div>
+    </div>
+    <div id="hud-right">
+      <button class="hud-btn" id="btn-inv">BAG</button>
+      <button class="hud-btn" id="btn-equip">GEAR</button>
+      <button class="hud-btn" id="btn-chars">CHAR</button>
+      <button class="hud-btn" id="btn-save">SAVE</button>
+    </div>
+  </div>
+
+  <!-- ============ SECTOR MAP ============ -->
+  <div id="screen-map" class="screen">
+    <div class="screen-header">GALAXY MAP</div>
+    <div id="map-body">
+      <canvas id="map-canvas" width="540" height="400"></canvas>
+      <div id="map-side">
+        <div id="map-sector-title"></div>
+        <div id="map-sector-desc"></div>
+        <div id="map-sector-enemies"></div>
+        <div id="map-sector-boss"></div>
+        <button class="action-btn green-btn" id="btn-enter-sector">WARP IN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ROOM EXPLORATION ============ -->
+  <div id="screen-explore" class="screen">
+    <div id="explore-layout">
+      <div id="explore-left">
+        <canvas id="room-canvas" width="500" height="380"></canvas>
+        <div id="room-title-bar"></div>
+      </div>
+      <div id="explore-right">
+        <div id="room-log"></div>
+        <div id="explore-actions"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ COMBAT ============ -->
+  <div id="screen-combat" class="screen">
+    <div id="combat-layout">
+      <!-- Arena top: enemy info -->
+      <div id="enemy-hud">
+        <div id="enemy-name-tag"></div>
+        <div class="bar-row wide">
+          <span class="bar-lbl hp-lbl">HP</span>
+          <div class="bar-wrap wide-bar"><div class="bar-fill hp-fill" id="enemy-hp-bar"></div></div>
+          <span class="bar-num" id="enemy-hp-num">???</span>
+        </div>
+        <div id="enemy-status-icons"></div>
+      </div>
+
+      <!-- Main battle canvas -->
+      <canvas id="battle-canvas" width="620" height="260"></canvas>
+
+      <!-- Player status effects -->
+      <div id="player-status-icons"></div>
+
+      <!-- Combat log -->
+      <div id="combat-log">
+        <div id="combat-log-inner"></div>
+      </div>
+
+      <!-- Action buttons -->
+      <div id="combat-actions" class="action-grid">
+        <button class="combat-btn atk-btn"  id="cb-attack">⚡ ATTACK</button>
+        <button class="combat-btn hvyatk-btn" id="cb-heavy">💥 HEAVY ATK</button>
+        <button class="combat-btn def-btn"  id="cb-defend">🛡 DEFEND</button>
+        <button class="combat-btn itm-btn"  id="cb-item">🎒 USE ITEM</button>
+        <button class="combat-btn abl-btn"  id="cb-ability">✦ ABILITY</button>
+        <button class="combat-btn esc-btn"  id="cb-escape">↩ ESCAPE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ INVENTORY ============ -->
+  <div id="screen-inventory" class="screen">
+    <div class="screen-header">INVENTORY <span id="inv-count"></span></div>
+    <div id="inv-layout">
+      <div id="inv-grid"></div>
+      <div id="inv-detail">
+        <div id="inv-detail-inner">Select an item...</div>
+        <div id="inv-action-btns"></div>
+      </div>
+    </div>
+    <button class="action-btn" id="btn-inv-close">CLOSE</button>
+  </div>
+
+  <!-- ============ EQUIPMENT ============ -->
+  <div id="screen-equipment" class="screen">
+    <div class="screen-header">EQUIPMENT</div>
+    <div id="equip-layout">
+      <div id="equip-slots"></div>
+      <div id="equip-stats"></div>
+    </div>
+    <button class="action-btn" id="btn-equip-close">CLOSE</button>
+  </div>
+
+  <!-- ============ CHARACTER PANEL ============ -->
+  <div id="screen-charsheet" class="screen">
+    <div class="screen-header">COMMANDER STATUS</div>
+    <div id="char-layout">
+      <canvas id="char-canvas" width="120" height="160"></canvas>
+      <div id="char-stats"></div>
+      <div id="char-abilities"></div>
+    </div>
+    <button class="action-btn" id="btn-char-close">CLOSE</button>
+  </div>
+
+  <!-- ============ LEVEL UP ============ -->
+  <div id="screen-levelup" class="screen">
+    <div class="screen-header gold-hdr">⭐ LEVEL UP! ⭐</div>
+    <div id="levelup-body">
+      <div id="levelup-new-level"></div>
+      <div id="levelup-gains"></div>
+      <div id="levelup-ability"></div>
+    </div>
+    <button class="action-btn green-btn" id="btn-levelup-ok">CONTINUE</button>
+  </div>
+
+  <!-- ============ LOOT SCREEN ============ -->
+  <div id="screen-loot" class="screen">
+    <div class="screen-header gold-hdr">★ LOOT ACQUIRED ★</div>
+    <div id="loot-body">
+      <div id="loot-xp"></div>
+      <div id="loot-credits"></div>
+      <div id="loot-items"></div>
+    </div>
+    <button class="action-btn green-btn" id="btn-loot-ok">COLLECT</button>
+  </div>
+
+  <!-- ============ SECTOR COMPLETE ============ -->
+  <div id="screen-sector-win" class="screen">
+    <div class="screen-header gold-hdr victory-flash">SECTOR CLEARED!</div>
+    <div id="swin-body">
+      <div id="swin-msg"></div>
+      <div id="swin-stats"></div>
+    </div>
+    <button class="action-btn green-btn" id="btn-next-sector">NEXT SECTOR ▶</button>
+    <button class="action-btn" id="btn-swin-map">GALAXY MAP</button>
+  </div>
+
+  <!-- ============ GAME COMPLETE ============ -->
+  <div id="screen-game-complete" class="screen">
+    <div class="screen-header gold-hdr victory-flash">★ GAME COMPLETE! ★</div>
+    <div id="gcomplete-body">
+      <div id="gcomplete-msg"></div>
+    </div>
+    <button class="action-btn green-btn" id="btn-gcomplete-menu">MAIN MENU</button>
+  </div>
+
+  <!-- ============ GAME OVER ============ -->
+  <div id="screen-gameover" class="screen">
+    <div class="screen-header red-hdr defeat-flash">DEFEATED</div>
+    <div id="gameover-body">
+      <div id="gameover-msg">Your signal has gone dark...</div>
+      <div id="gameover-stats"></div>
+    </div>
+    <button class="action-btn red-btn" id="btn-retry">RETRY SECTOR</button>
+    <button class="action-btn" id="btn-go-menu">MAIN MENU</button>
+  </div>
+
+  <!-- ============ ACHIEVEMENTS ============ -->
+  <div id="screen-achievements" class="screen">
+    <div class="screen-header">ACHIEVEMENTS</div>
+    <div id="ach-grid"></div>
+    <button class="action-btn" id="btn-ach-close">CLOSE</button>
+  </div>
+
+  <!-- ============ ABOUT ============ -->
+  <div id="screen-about" class="screen">
+    <div class="screen-header">ABOUT</div>
+    <div id="about-body">
+      <p>STARFALL FRONTIER</p>
+      <p>A complete browser-based pixel-art<br>Space RPG built with pure HTML5,<br>CSS3, and JavaScript.</p>
+      <p>CONTROLS</p>
+      <p>Mouse / Touch — click all UI elements<br>Keyboard — 1-6 for combat actions<br>S — save  I — inventory  E — equipment</p>
+      <p>FEATURES</p>
+      <p>5 unique sectors · 22 enemy types<br>5 sector bosses · 30+ items<br>6 special abilities · Achievement system<br>Auto-save to browser storage</p>
+    </div>
+    <button class="action-btn" id="btn-about-close">BACK</button>
+  </div>
+
+  <!-- ============ MODAL ============ -->
+  <div id="modal-overlay" class="hidden">
+    <div id="modal-box">
+      <div id="modal-title"></div>
+      <div id="modal-body"></div>
+      <div id="modal-btns"></div>
+    </div>
+  </div>
+
+  <!-- Floating damage numbers (canvas overlay) -->
+  <div id="dmg-layer"></div>
+
+  <!-- Toast notifications -->
+  <div id="toast-area"></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/items.js"></script>
+<script src="js/player.js"></script>
+<script src="js/enemy.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/dungeon.js"></script>
+<script src="js/save.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
