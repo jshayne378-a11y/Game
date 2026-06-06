@@ -667,8 +667,38 @@ class Game {
 }
 
 // =====================================================
+//  RESPONSIVE SCALING
+//  Scales the fixed 900×620 game container to fill the
+//  available viewport while preserving the aspect ratio.
+// =====================================================
+const GAME_W = 900, GAME_H = 620;
+
+function scaleGame() {
+  const container = document.getElementById('game-container');
+  const wrap      = document.getElementById('game-wrap');
+  if (!container || !wrap) return;
+
+  const vw    = wrap.clientWidth  || window.innerWidth;
+  const vh    = wrap.clientHeight || window.innerHeight;
+  const scale = Math.min(vw / GAME_W, vh / GAME_H);
+
+  // Centre the scaled container inside the wrapper
+  const left = Math.floor((vw - GAME_W * scale) / 2);
+  const top  = Math.floor((vh - GAME_H * scale) / 2);
+
+  container.style.transform      = `scale(${scale})`;
+  container.style.transformOrigin = 'top left';
+  container.style.position        = 'absolute';
+  container.style.left            = left + 'px';
+  container.style.top             = top  + 'px';
+}
+
+// =====================================================
 //  BOOT
 // =====================================================
 window.addEventListener('DOMContentLoaded', () => {
+  scaleGame();
+  window.addEventListener('resize',              scaleGame);
+  window.addEventListener('orientationchange',   () => setTimeout(scaleGame, 120));
   window.game = new Game();
 });
