@@ -68,7 +68,7 @@ var MENU_SECTIONS = [
         items: [
           mi('Drift Chicken Bowl', 20, 'herb-marinated free-range chicken, shaved brussels sprouts, baby greens, heirloom tomato, persian cucumber, bucheron goat cheese, pomegranate, puffed quinoa, preserved lemon vinaigrette', ['GF']),
           mi('Lobster Cobb', 29, 'cold water lobster salad, crisp romaine, peppered applewood smoked bacon, heirloom tomato, cucumber, chopped egg, creamy tarragon dressing', ['GF']),
-          mi('Grilled Chicken Caesar', 19, 'crisp romaine, herb focaccia croutons, shaved grana padano, crunchy parmesan streusel, creamy caesar dressing (spanish anchovies on request)'),
+          mi('Grilled Chicken Caesar', 19, "crisp romaine, herb focaccia croutons, shaved grana padano, crunchy parmesan streusel, creamy caesar dressing (boquerón's spanish anchovies on request)"),
           mi('Ora King Salmon', 25, 'lemon & coriander-dusted, power 3 greens, ancient grains, heirloom tomato, cucumber, dried cranberries, toasted almonds, roasted apple vinaigrette', ['RAW']),
           mi('Smoky Steak Power Bowl', 28, 'flame-grilled sirloin, power greens, toasted farro, marinated tomato, charred asparagus, salt roasted beets, fire-roasted artichokes, maytag blue cheese, honey shallot vinaigrette', ['RAW'])
         ]
@@ -80,7 +80,7 @@ var MENU_SECTIONS = [
           mi('Bistro Steak', 26, 'herb-marinated strip loin, black garlic aioli, smoked mozzarella, caramelized onion, roasted tomato, baby arugula, artisan ciabatta', ['RAW']),
           mi('Spicy Fish Tacos', 21, 'local catch, chipotle avocado mayo, charred corn relish, crunchy slaw, cilantro crema'),
           mi('Roasted Harissa Chicken', 17, "whipped feta, shredded lettuce, za'atar-spiced cucumber salad, local tomato, grilled naan bread"),
-          mi('Classic Steak Burger', 18, 'signature beef blend, drift sauce, griddled brioche, choice of cheese: american, cheddar, swiss, provolone — add bacon +2', ['RAW']),
+          mi('Classic Steak Burger', 18, 'signature beef blend, drift sauce, griddled brioche, choice of cheese: american, cheddar, swiss, provolone — add thick-cut peppered bacon +2', ['RAW']),
           mi('Drift Burger', 21, 'signature beef blend, roasted wild mushrooms, red onion marmalade, smoked mozzarella, truffle aioli, crispy shallots, butter-griddled brioche', ['RAW']),
           mi('Crispy Chicken Cabana', 17, 'southern-style buttermilk chicken, crisp lettuce, tomato, dill pickle slices, roasted garlic aioli, toasted potato roll')
         ]
@@ -110,7 +110,7 @@ var MENU_SECTIONS = [
           mi('Beets & Burrata', 14, 'salt-roasted golden beets, charred asparagus, whipped burrata, golden frisee, local honey, pickled red onion, pistachio crumble'),
           mi('Tuscan', 13, 'baby lettuces, heirloom tomato, cucumber, goat cheese, puffed quinoa, toasted almonds, lemon raisin vinaigrette', ['GF']),
           mi('Little Gem Wedge', 14, 'marinated heirloom tomatoes, applewood smoked bacon, maytag blue cheese, pickled red onions, buttermilk herb dressing'),
-          mi('Hearts Of Romaine', 13, 'crisp romaine, herb focaccia croutons, shaved grana padano, crunchy parmesan streusel, creamy caesar dressing (spanish anchovies on request)')
+          mi('Hearts Of Romaine', 13, "crisp romaine, herb focaccia croutons, shaved grana padano, crunchy parmesan streusel, creamy caesar dressing (boquerón's spanish anchovies on request)")
         ]
       },
       {
@@ -157,7 +157,7 @@ var MENU_SECTIONS = [
         note: 'Dessert cocktails.',
         items: [
           mi('Key Lime Pie Martini', 16, 'stoli vanilla vodka, cointreau, pressed key lime, cream of coconut, simple syrup, graham cracker rim'),
-          mi('Lemon Meringue Martini', 16, 'stoli vanilla vodka, limoncello, fresh-pressed lemon, agave nectar, cream of coconut, graham cracker crumb rim, torched meringue cloud, lemon zest'),
+          mi('Lemon Meringue Martini', 16, 'stoli vanilla vodka, limoncello, fresh-pressed lemon, agave nectar, cream of coconut, fine graham cracker crumb rim, torched meringue cloud, lemon zest'),
           mi('Samoa Martini', 16, "stoli salted karamel vodka, crème de cacao, coconut cream, milk, chocolate drizzle, toasted coconut"),
           mi('Crème Brûlée Martini', 16, 'crème brûlée liqueur, stoli vanilla vodka, half & half, caramel syrup rim')
         ]
@@ -170,7 +170,7 @@ var MENU_SECTIONS = [
           mi('Irish Coffee', 14, "fresh-brewed coffee, tullamore d.e.w. irish whiskey, dark cane sugar, syrup, local cream float"),
           mi('KGB', 14, "fresh-brewed coffee, kahlúa, grand marnier, baileys irish cream, local cream float"),
           mi('Nutty Captain', 14, "fresh-brewed coffee, baileys irish cream, frangelico, local whipped cream float"),
-          mi('Island Coffee', 14, 'fresh-brewed coffee, rum and amaretto — sweet and nutty, caribbean style'),
+          mi('Island Coffee', 14, 'fresh-brewed coffee, rum and amaretto come together for a taste of the caribbean — sweet and nutty'),
           mi('Cappuccino or Latte', 6, 'single shot'),
           mi('Espresso', 5, 'single shot')
         ]
@@ -190,14 +190,14 @@ var MENU_SECTIONS = [
           mi('Anchors Aweigh', 15, "tito's handmade vodka, pressed pineapple, lime, agave, mint, tiki bitters"),
           mi('Wave Bender Old Fashioned', 15, 'bacardi anejo cuatro 4yr rum, filthy cherry syrup, angostura bitters, chocolate bitters'),
           mi('Stoli Blueberry Fog', 15, 'stoli blueberry vodka, st-germain liqueur, fresh-pressed lemon, elderflower foam, blueberry pick'),
-          mi('21 Seeds Paloma', 15, '21 seeds grapefruit hibiscus tequila, fresh-pressed lime, agave, fever-tree sparkling pink grapefruit'),
-          mi('Ocean Mist Mule', 15, 'grey goose la poire vodka, st-germain elderflower liqueur, pressed lemon, grapefruit bitters, ginger beer'),
+          mi('21 Seeds Paloma', 15, '21 seeds grapefruit hibiscus tequila, fresh-pressed lime, agave finished with fever-tree sparkling pink grapefruit'),
+          mi('Ocean Mist Mule', 15, 'grey goose la poire vodka, st-germain elderflower liqueur, pressed lemon, grapefruit bitters, finished with ginger beer'),
           mi('The Smoking Gun', 16, 'ilegal mezcal, stinging bee syrup, pressed pineapple & lime, smoked chili bitters'),
           mi('Strawberry Aperol Spritz', 15, 'aperol, strawberries, pressed lemon & agave, topped with la marca prosecco'),
           mi('Black Cherry Old Fashioned', 16, "maker's mark bourbon, simple syrup, cherry bitters"),
           mi('Infused & Twisted', 16, "tito's handmade vodka, effen cucumber vodka, pressed cucumber & lime, agave, basil, fever-tree elderflower tonic"),
           mi('Perfect Storm Punch', 15, 'diplomatico planas and mantuano aged rums, dry curaçao, pressed lime & pineapple'),
-          mi('Oceanside Mary "House Specialty"', 16, "tito's handmade vodka, san marzano tomatoes, lemon & celery juices, balsamic vinegar, horseradish, celtic sea salt, old bay rim, rosemary-skewered olive, cherry tomato, spicy pepper"),
+          mi('Oceanside Mary "House Specialty"', 16, "tito's handmade vodka, premium imported san marzano tomatoes, pure squeezed lemon and celery juices, balsamic vinegar, freshly grated horseradish, grey celtic sea salt and spices, rimmed with old bay, garnished with rosemary-skewered olive, cherry tomato, spicy pepper"),
           mi('Ultimate Manhattan', 17, 'woodford reserve bourbon, sweet vermouth, angostura bitters, filthy cherry')
         ]
       },
@@ -223,7 +223,7 @@ var MENU_SECTIONS = [
           mi('Espresso Martini', 17, 'stoli vanilla vodka, kahlúa, crème de cacao, espresso'),
           mi('Prosecco Colada', 16, 'rumhaven coconut water rum, cream of coconut, freshly pressed pineapple, benvolio prosecco, pineapple wedge'),
           mi('Clover Club', 17, "hendrick's gin, pressed lemon, raspberry \"sea foam\""),
-          mi('Dirty Water Martini', 17, "hendrick's gin or tito's handmade vodka, dry vermouth, olive brine, choice of stuffed olive")
+          mi('Dirty Water Martini', 17, "hendrick's gin or tito's handmade vodka, dry vermouth, olive brine, garnished with your choice of stuffed olive")
         ]
       },
       {
@@ -317,7 +317,7 @@ var MENU_SECTIONS = [
       },
       {
         title: 'Coravin Reserve Wine Selection',
-        note: 'Poured by the glass using Coravin to preserve freshness.',
+        note: 'Poured by the glass using Coravin to preserve freshness and integrity in every bottle.',
         items: [
           mi('Stonestreet Cabernet Sauvignon', 32, 'Alexander Valley, Sonoma County, California — raspberry, dried blood orange, violet and black tea'),
           mi('Duckhorn Merlot', 27, 'Napa Valley, California — red currant, ripe plum and fig compote'),
