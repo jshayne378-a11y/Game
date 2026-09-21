@@ -319,23 +319,23 @@ a { color: inherit; text-decoration: none; }
 
 /* ---------- Ingredient Match ---------- */
 
-.ingmatch-board { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.ingmatch-col { display: flex; flex-direction: column; gap: 8px; }
-.ingmatch-col-title { margin: 0 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
-.ingmatch-chip {
-  padding: 10px 12px;
-  border-radius: 10px;
+.ingmatch-instruction { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.ingmatch-bubbles { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.ingmatch-bubble {
+  padding: 9px 16px;
+  border-radius: 20px;
   border: 1px solid #d8cfba;
   background: var(--cream-2);
   cursor: pointer;
   text-align: left;
   font-size: 13px;
-  line-height: 1.35;
+  line-height: 1.3;
 }
-.ingmatch-chip:hover { background: #e8dfc9; }
-.ingmatch-chip.selected { background: var(--gold); border-color: var(--gold); color: var(--navy); font-weight: 700; }
-.ingmatch-chip.matched { background: #cdeccf; border-color: var(--green); color: var(--green); cursor: default; opacity: 0.7; }
-.ingmatch-chip.wrong { background: #f4d3cf; border-color: var(--red); }
+.ingmatch-bubble:hover { background: #e8dfc9; }
+.ingmatch-bubble.selected { background: var(--gold); border-color: var(--gold); color: var(--navy); font-weight: 700; }
+.ingmatch-bubble.correct { background: #cdeccf; border-color: var(--green); color: var(--green); font-weight: 700; }
+.ingmatch-bubble.wrong { background: #f4d3cf; border-color: var(--red); color: var(--red); font-weight: 700; }
+.ingmatch-bubble.missed { background: white; border: 2px dashed var(--gold); color: var(--gold); font-weight: 700; }
 
 /* ---------- Progress ---------- */
 
@@ -352,6 +352,5 @@ a { color: inherit; text-decoration: none; }
   .memory-grid { grid-template-columns: repeat(3, 1fr); }
   .hero h1 { font-size: 24px; }
   .quiz-options { grid-template-columns: 1fr; }
-  .ingmatch-board { gap: 10px; }
-  .ingmatch-chip { padding: 8px; font-size: 12px; }
+  .ingmatch-bubble { padding: 8px 12px; font-size: 12px; }
 }

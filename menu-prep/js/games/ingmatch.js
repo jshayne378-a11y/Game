@@ -1,154 +1,164 @@
 /* ===========================================================
-   Game: Ingredient Match — tap an ingredient, tap its dish
+   Game: Ingredient Match — see the dish, tap every ingredient
+   bubble that belongs to it, then submit
    =========================================================== */
 
 GAMES.ingmatch = {
   title: 'Ingredient Match',
   icon: '🥕',
-  blurb: 'Tap an ingredient, then tap the dish it belongs to. Shared ingredients can match more than one dish — either counts.',
+  blurb: 'See the dish, tap every ingredient bubble that belongs to it, then submit. Look-alike ingredients from other dishes are mixed in.',
   render: function (container) {
-    var PAIR_COUNT = 6;
-    var state = {
-      sectionId: 'all-day', ingredients: [], dishes: [], itemsById: {},
-      matchedItemIds: {}, matchedIngredientIdx: {}, selectedIdx: null,
-      mistakes: 0, seconds: 0, timer: null, locked: false
-    };
-    var statusEl, totalPairs;
+    var ROUNDS = 8;
+    var MAX_DISTRACTORS = 4;
+    var state = { sectionId: 'all-day', rounds: [], rIndex: 0, score: 0, missed: [], submitted: false };
 
-    function stopTimer() {
-      if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    function buildRounds(sectionId) {
+      var pool = getItemsBySection(sectionId).filter(function (i) { return splitIngredients(i.desc).length > 0; });
+      var picks = sampleN(pool, Math.min(ROUNDS, pool.length));
+
+      var allPhrases = [];
+      var seenPhrase = {};
+      pool.forEach(function (i) {
+        splitIngredients(i.desc).forEach(function (p) {
+          var key = p.toLowerCase();
+          if (!seenPhrase[key]) { seenPhrase[key] = true; allPhrases.push(p); }
+        });
+      });
+
+      return picks.map(function (item) {
+        var descLower = item.desc.toLowerCase();
+        var correctPhrases = splitIngredients(item.desc);
+        var correctLower = {};
+        correctPhrases.forEach(function (p) { correctLower[p.toLowerCase()] = true; });
+
+        var candidateDistractors = allPhrases.filter(function (p) {
+          var lower = p.toLowerCase();
+          return !correctLower[lower] && descLower.indexOf(lower) === -1;
+        });
+        var distractorCount = Math.min(MAX_DISTRACTORS, candidateDistractors.length);
+        var distractors = sampleN(candidateDistractors, distractorCount);
+
+        var bubbles = shuffle(correctPhrases.concat(distractors));
+        return { item: item, bubbles: bubbles };
+      });
     }
 
     function start(sectionId) {
-      stopTimer();
       state.sectionId = sectionId;
-      var pool = getItemsBySection(sectionId).filter(function (i) { return splitIngredients(i.desc).length > 0; });
-      var picks = sampleN(pool, Math.min(PAIR_COUNT, pool.length));
-
-      state.itemsById = {};
-      picks.forEach(function (item) { state.itemsById[item.id] = item; });
-
-      state.dishes = shuffle(picks.map(function (item) { return { id: item.id, name: item.name, el: null }; }));
-      state.ingredients = shuffle(picks.map(function (item) {
-        var phrases = splitIngredients(item.desc);
-        return { text: phrases[randInt(0, phrases.length - 1)], itemId: item.id, el: null };
-      }));
-
-      state.matchedItemIds = {};
-      state.matchedIngredientIdx = {};
-      state.selectedIdx = null;
-      state.mistakes = 0;
-      state.seconds = 0;
-      state.locked = false;
-
-      if (picks.length === 0) { drawEmpty(); return; }
-
-      state.timer = setInterval(function () { state.seconds++; updateStatus(); }, 1000);
-      window.addEventListener('hashchange', stopTimer, { once: true });
-      drawBoard();
+      state.rounds = buildRounds(sectionId);
+      state.rIndex = 0;
+      state.score = 0;
+      state.missed = [];
+      drawRound();
     }
 
-    function updateStatus() {
-      if (!statusEl) return;
-      var matchedCount = Object.keys(state.matchedItemIds).length;
-      statusEl.textContent = 'Matched: ' + matchedCount + '/' + totalPairs + '   ·   Mistakes: ' + state.mistakes + '   ·   Time: ' + state.seconds + 's';
+    function drawIntro() {
+      container.innerHTML = '';
+      container.appendChild(sectionPicker(function (id) { state.sectionId = id; }, state.sectionId));
+      container.appendChild(el('div', { class: 'quiz-intro' }, [
+        el('p', {}, [ROUNDS + ' rounds. See the dish, tap every ingredient bubble that actually belongs to it (there may be one, or several), then submit.']),
+        el('button', { class: 'btn btn-primary', onclick: function () { start(state.sectionId); } }, ['Start'])
+      ]));
     }
 
     function drawEmpty() {
       container.innerHTML = '';
-      container.appendChild(sectionPicker(start, state.sectionId));
+      container.appendChild(sectionPicker(function (id) { state.sectionId = id; }, state.sectionId));
       container.appendChild(el('div', { class: 'quiz-intro' }, [
         el('p', {}, ['No items with ingredient descriptions in this section. Try another section.'])
       ]));
     }
 
-    function drawBoard() {
+    function drawRound() {
       container.innerHTML = '';
-      totalPairs = state.dishes.length;
-      container.appendChild(sectionPicker(start, state.sectionId));
-      statusEl = el('div', { class: 'memory-status' });
-      updateStatus();
-      container.appendChild(statusEl);
+      if (!state.rounds.length) { drawEmpty(); return; }
+      if (state.rIndex >= state.rounds.length) { drawResults(); return; }
+      var round = state.rounds[state.rIndex];
+      var item = round.item;
+      state.submitted = false;
+      var selected = {};
 
-      var board = el('div', { class: 'ingmatch-board' });
-      var ingCol = el('div', { class: 'ingmatch-col' }, [el('h4', { class: 'ingmatch-col-title' }, ['Ingredients'])]);
-      var dishCol = el('div', { class: 'ingmatch-col' }, [el('h4', { class: 'ingmatch-col-title' }, ['Dishes'])]);
+      var header = el('div', { class: 'quiz-progress' }, [
+        'Round ' + (state.rIndex + 1) + ' / ' + state.rounds.length + '   ·   Score: ' + state.score
+      ]);
+      var card = el('div', { class: 'priceguess-card' }, [
+        el('div', { class: 'priceguess-tags' }, tagChips(item.tags)),
+        el('h3', {}, [item.name]),
+        el('p', { class: 'priceguess-cat' }, [item.sectionTitle + ' · ' + item.categoryTitle])
+      ]);
+      var instruction = el('p', { class: 'ingmatch-instruction' }, ['Tap every ingredient that belongs to this dish.']);
 
-      state.ingredients.forEach(function (ing, idx) {
-        var btn = el('button', { class: 'ingmatch-chip' }, [ing.text]);
-        btn.addEventListener('click', function () { selectIngredient(idx); });
-        ing.el = btn;
-        ingCol.appendChild(btn);
+      var bubbleWrap = el('div', { class: 'ingmatch-bubbles' });
+      var bubbleEls = round.bubbles.map(function (text) {
+        var btn = el('button', { class: 'ingmatch-bubble' }, [text]);
+        btn.addEventListener('click', function () {
+          if (state.submitted) return;
+          if (selected[text]) { delete selected[text]; btn.classList.remove('selected'); }
+          else { selected[text] = true; btn.classList.add('selected'); }
+        });
+        bubbleWrap.appendChild(btn);
+        return { text: text, el: btn };
       });
 
-      state.dishes.forEach(function (dish) {
-        var btn = el('button', { class: 'ingmatch-chip' }, [dish.name]);
-        btn.addEventListener('click', function () { selectDish(dish.id); });
-        dish.el = btn;
-        dishCol.appendChild(btn);
+      var feedback = el('div', { class: 'priceguess-feedback' });
+      var actionBtn = el('button', { class: 'btn btn-primary' }, ['Submit']);
+
+      actionBtn.addEventListener('click', function () {
+        if (state.submitted) { state.rIndex++; drawRound(); return; }
+        state.submitted = true;
+        var descLower = item.desc.toLowerCase();
+        var correctSelected = 0, wrongSelected = 0, missedCorrect = 0;
+
+        bubbleEls.forEach(function (b) {
+          var isCorrect = descLower.indexOf(b.text.toLowerCase()) !== -1;
+          var isSelected = !!selected[b.text];
+          if (isSelected && isCorrect) { b.el.classList.add('correct'); correctSelected++; }
+          else if (isSelected && !isCorrect) { b.el.classList.add('wrong'); wrongSelected++; }
+          else if (!isSelected && isCorrect) { b.el.classList.add('missed'); missedCorrect++; }
+        });
+
+        var roundScore = Math.max(0, correctSelected * 10 - wrongSelected * 5 - missedCorrect * 5);
+        state.score += roundScore;
+        var perfect = wrongSelected === 0 && missedCorrect === 0;
+        if (!perfect) state.missed.push(item);
+
+        feedback.className = 'priceguess-feedback shown';
+        feedback.textContent = perfect
+          ? 'All correct! +' + roundScore + ' points'
+          : correctSelected + ' correct, ' + wrongSelected + ' wrong pick' + (wrongSelected === 1 ? '' : 's') + ', ' + missedCorrect + ' missed. +' + roundScore + ' points';
+        header.textContent = 'Round ' + (state.rIndex + 1) + ' / ' + state.rounds.length + '   ·   Score: ' + state.score;
+        actionBtn.textContent = state.rIndex + 1 >= state.rounds.length ? 'See Results' : 'Next Round →';
       });
 
-      board.appendChild(ingCol);
-      board.appendChild(dishCol);
-      container.appendChild(board);
+      container.appendChild(header);
+      container.appendChild(card);
+      container.appendChild(instruction);
+      container.appendChild(bubbleWrap);
+      container.appendChild(actionBtn);
+      container.appendChild(feedback);
     }
 
-    function selectIngredient(idx) {
-      if (state.locked || state.matchedIngredientIdx[idx]) return;
-      var ing = state.ingredients[idx];
-      if (state.selectedIdx === idx) {
-        ing.el.classList.remove('selected');
-        state.selectedIdx = null;
-        return;
-      }
-      state.ingredients.forEach(function (i) { if (i.el) i.el.classList.remove('selected'); });
-      ing.el.classList.add('selected');
-      state.selectedIdx = idx;
-    }
-
-    function selectDish(itemId) {
-      if (state.locked || state.matchedItemIds[itemId] || state.selectedIdx == null) return;
-      var ing = state.ingredients[state.selectedIdx];
-      var dish = state.dishes.filter(function (d) { return d.id === itemId; })[0];
-      var item = state.itemsById[itemId];
-      var correct = item.desc && item.desc.toLowerCase().indexOf(ing.text.toLowerCase()) !== -1;
-
-      if (correct) {
-        ing.el.classList.remove('selected');
-        ing.el.classList.add('matched');
-        dish.el.classList.add('matched');
-        state.matchedIngredientIdx[state.selectedIdx] = true;
-        state.matchedItemIds[itemId] = true;
-        state.selectedIdx = null;
-        updateStatus();
-        if (Object.keys(state.matchedItemIds).length === totalPairs) finish();
-        return;
-      }
-
-      state.locked = true;
-      state.mistakes++;
-      ing.el.classList.add('wrong');
-      dish.el.classList.add('wrong');
-      updateStatus();
-      setTimeout(function () {
-        ing.el.classList.remove('wrong', 'selected');
-        dish.el.classList.remove('wrong');
-        state.selectedIdx = null;
-        state.locked = false;
-      }, 600);
-    }
-
-    function finish() {
-      stopTimer();
-      var score = Math.max(50, 1000 - state.mistakes * 40 - state.seconds * 2);
-      recordScore('ingmatch', score);
-      container.appendChild(el('div', { class: 'memory-finish' }, [
-        el('h2', {}, ['All Matched! 🎉']),
-        el('p', {}, ['Mistakes: ' + state.mistakes + '   ·   Time: ' + state.seconds + 's   ·   Score: ' + score]),
-        el('button', { class: 'btn btn-primary', onclick: function () { start(state.sectionId); } }, ['Play Again'])
+    function drawResults() {
+      container.innerHTML = '';
+      recordScore('ingmatch', state.score);
+      container.appendChild(el('div', { class: 'quiz-results' }, [
+        el('h2', {}, ['Total Score: ' + state.score]),
+        el('p', {}, [state.missed.length ? 'Review these before your next attempt:' : 'Perfect run across all rounds!'])
       ]));
+      if (state.missed.length) {
+        container.appendChild(el('div', { class: 'item-list' }, state.missed.map(function (item) {
+          return el('div', { class: 'item-row' }, [
+            el('div', { class: 'item-row-top' }, [
+              el('span', { class: 'item-name' }, [item.name]),
+              el('span', { class: 'item-price' }, ['$' + item.price])
+            ]),
+            el('div', { class: 'item-desc' }, [item.desc])
+          ]);
+        })));
+      }
+      container.appendChild(el('button', { class: 'btn btn-primary', onclick: drawIntro }, ['Play Again']));
     }
 
-    start(state.sectionId);
+    drawIntro();
   }
 };
