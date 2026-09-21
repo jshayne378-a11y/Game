@@ -23,6 +23,14 @@ function fmtMoney(v) {
   return '$' + (Math.round(v * 100) / 100).toString();
 }
 
+function splitIngredients(desc) {
+  if (!desc) return [];
+  return desc
+    .split(',')
+    .map(function (s) { return s.trim(); })
+    .filter(function (s) { return s.length > 1; });
+}
+
 function sectionColorFor(sectionId) {
   var s = MENU_SECTIONS.filter(function (x) { return x.id === sectionId; })[0];
   return s ? s.color : '#c98a3d';
