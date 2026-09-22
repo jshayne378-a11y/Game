@@ -9,7 +9,6 @@ GAMES.ingmatch = {
   blurb: 'See the dish, tap every ingredient bubble that belongs to it, then submit. Look-alike ingredients from other dishes are mixed in.',
   render: function (container) {
     var ROUNDS = 8;
-    var MAX_DISTRACTORS = 4;
     var state = { sectionId: 'all-day', rounds: [], rIndex: 0, score: 0, missed: [], submitted: false };
 
     function buildRounds(sectionId) {
@@ -26,20 +25,7 @@ GAMES.ingmatch = {
       });
 
       return picks.map(function (item) {
-        var descLower = item.desc.toLowerCase();
-        var correctPhrases = splitIngredients(item.desc);
-        var correctLower = {};
-        correctPhrases.forEach(function (p) { correctLower[p.toLowerCase()] = true; });
-
-        var candidateDistractors = allPhrases.filter(function (p) {
-          var lower = p.toLowerCase();
-          return !correctLower[lower] && descLower.indexOf(lower) === -1;
-        });
-        var distractorCount = Math.min(MAX_DISTRACTORS, candidateDistractors.length);
-        var distractors = sampleN(candidateDistractors, distractorCount);
-
-        var bubbles = shuffle(correctPhrases.concat(distractors));
-        return { item: item, bubbles: bubbles };
+        return { item: item, bubbles: shuffle(allPhrases) };
       });
     }
 
