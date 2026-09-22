@@ -24,8 +24,12 @@ GAMES.ingmatch = {
         });
       });
 
+      var sortedPhrases = allPhrases.slice().sort(function (a, b) {
+        return a.toLowerCase().localeCompare(b.toLowerCase());
+      });
+
       return picks.map(function (item) {
-        return { item: item, bubbles: shuffle(allPhrases) };
+        return { item: item, bubbles: sortedPhrases };
       });
     }
 
@@ -72,11 +76,14 @@ GAMES.ingmatch = {
         el('h3', {}, [item.name]),
         el('p', { class: 'priceguess-cat' }, [item.sectionTitle + ' · ' + item.categoryTitle])
       ]);
-      var instruction = el('p', { class: 'ingmatch-instruction' }, ['Tap every ingredient that belongs to this dish.']);
+      var instruction = el('p', { class: 'ingmatch-instruction' }, ['Tap every ingredient that belongs to this dish. Listed alphabetically.']);
 
-      var bubbleWrap = el('div', { class: 'ingmatch-bubbles' });
+      var bubbleWrap = el('div', { class: 'ingmatch-list' });
       var bubbleEls = round.bubbles.map(function (text) {
-        var btn = el('button', { class: 'ingmatch-bubble' }, [text]);
+        var btn = el('button', { class: 'ingmatch-row' }, [
+          el('span', { class: 'ingmatch-check' }),
+          el('span', { class: 'ingmatch-row-text' }, [text])
+        ]);
         btn.addEventListener('click', function () {
           if (state.submitted) return;
           if (selected[text]) { delete selected[text]; btn.classList.remove('selected'); }
