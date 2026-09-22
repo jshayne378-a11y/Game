@@ -354,7 +354,7 @@ a { color: inherit; text-decoration: none; }
   border: 2px solid #d8cfba;
   background: white;
 }
-.ingmatch-row-text { flex: 1; }
+.ingmatch-row-text { flex: 1; color: var(--muted); }
 .ingmatch-row.selected { background: #faf1de; }
 .ingmatch-row.selected .ingmatch-check { background: var(--gold); border-color: var(--gold); }
 .ingmatch-row.correct { background: #e8f5e9; }

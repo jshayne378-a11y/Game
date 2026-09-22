@@ -9,7 +9,12 @@ GAMES.ingmatch = {
   blurb: 'See the dish, tap every ingredient bubble that belongs to it, then submit. Look-alike ingredients from other dishes are mixed in.',
   render: function (container) {
     var ROUNDS = 8;
+    var LIST_SIZE = 40;
     var state = { sectionId: 'all-day', rounds: [], rIndex: 0, score: 0, missed: [], submitted: false };
+
+    function alphaSort(arr) {
+      return arr.slice().sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+    }
 
     function buildRounds(sectionId) {
       var pool = getItemsBySection(sectionId).filter(function (i) { return splitIngredients(i.desc).length > 0; });
@@ -24,12 +29,20 @@ GAMES.ingmatch = {
         });
       });
 
-      var sortedPhrases = allPhrases.slice().sort(function (a, b) {
-        return a.toLowerCase().localeCompare(b.toLowerCase());
-      });
-
       return picks.map(function (item) {
-        return { item: item, bubbles: sortedPhrases };
+        var descLower = item.desc.toLowerCase();
+        var correctPhrases = splitIngredients(item.desc);
+        var correctLower = {};
+        correctPhrases.forEach(function (p) { correctLower[p.toLowerCase()] = true; });
+
+        var distractorPool = allPhrases.filter(function (p) {
+          var lower = p.toLowerCase();
+          return !correctLower[lower] && descLower.indexOf(lower) === -1;
+        });
+        var distractorCount = Math.max(0, LIST_SIZE - correctPhrases.length);
+        var distractors = sampleN(distractorPool, Math.min(distractorCount, distractorPool.length));
+
+        return { item: item, bubbles: alphaSort(correctPhrases.concat(distractors)) };
       });
     }
 
