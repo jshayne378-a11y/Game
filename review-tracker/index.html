@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f3b47">
+  <title>Drift Review Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">≈</div>
+    <div>
+      <h1>Drift · Opal Sol</h1>
+      <p class="sub">Review tracker — 400 Coronado Dr, Clearwater Beach, FL</p>
+    </div>
+  </div>
+  <div class="overall" id="overall"></div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="dashboard" role="tab">Dashboard</button>
+  <button class="tab" data-tab="reviews" role="tab">Reviews</button>
+  <button class="tab" data-tab="trends" role="tab">Trends</button>
+  <button class="tab" data-tab="settings" role="tab">Sites &amp; Data</button>
+</nav>
+
+<main>
+  <!-- DASHBOARD -->
+  <section id="tab-dashboard" class="panel active">
+    <div class="platform-grid" id="platform-grid"></div>
+    <div class="two-col">
+      <div class="card">
+        <h2>Needs a response</h2>
+        <div id="needs-response"></div>
+      </div>
+      <div class="card">
+        <h2>Star breakdown (tracked reviews)</h2>
+        <div id="star-breakdown"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REVIEWS -->
+  <section id="tab-reviews" class="panel">
+    <div class="toolbar">
+      <input type="search" id="f-search" placeholder="Search text, author, tags…">
+      <select id="f-platform"><option value="">All sites</option></select>
+      <select id="f-stars">
+        <option value="">All ratings</option>
+        <option value="5">5 ★</option><option value="4">4 ★</option>
+        <option value="3">3 ★</option><option value="2">2 ★</option>
+        <option value="1">1 ★</option><option value="low">1–3 ★ (needs attention)</option>
+      </select>
+      <select id="f-status">
+        <option value="">Any status</option>
+        <option value="open">Not responded</option>
+        <option value="done">Responded</option>
+      </select>
+      <select id="f-sort">
+        <option value="date-desc">Newest first</option>
+        <option value="date-asc">Oldest first</option>
+        <option value="rating-asc">Lowest rating</option>
+        <option value="rating-desc">Highest rating</option>
+      </select>
+      <button class="btn primary" id="btn-add">+ Add review</button>
+    </div>
+    <p class="muted" id="review-count"></p>
+    <div id="review-list"></div>
+  </section>
+
+  <!-- TRENDS -->
+  <section id="tab-trends" class="panel">
+    <div class="card">
+      <div class="card-head">
+        <h2>Rating over time</h2>
+        <span class="muted small">From logged snapshots and synced data</span>
+      </div>
+      <div id="trend-legend" class="legend"></div>
+      <div id="trend-chart" class="chart"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Reviews per month</h2>
+        <span class="muted small">Tracked reviews, stacked by site</span>
+      </div>
+      <div id="volume-chart" class="chart"></div>
+    </div>
+    <div class="card">
+      <h2>Snapshot history</h2>
+      <div id="snapshot-table"></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="tab-settings" class="panel">
+    <div class="card">
+      <h2>Review sites</h2>
+      <p class="muted">Turn sites on or off, and fix the listing URL if it changes. Recommended extras are off by default.</p>
+      <div id="platform-settings"></div>
+      <form id="custom-platform" class="inline-form">
+        <input name="name" placeholder="Add another site (name)" required>
+        <input name="url" type="url" placeholder="Listing URL" required>
+        <button class="btn">Add site</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Import &amp; export</h2>
+      <p class="muted">Import a CSV (columns: <code>platform, author, rating, date, title, text, url</code>) or a JSON file exported from this app or produced by the sync script.</p>
+      <div class="btn-row">
+        <label class="btn">Import file…<input type="file" id="import-file" accept=".json,.csv" hidden></label>
+        <button class="btn" id="btn-load-synced">Load data/synced.json</button>
+        <button class="btn" id="btn-export-json">Export JSON</button>
+        <button class="btn" id="btn-export-csv">Export CSV</button>
+        <button class="btn danger" id="btn-reset">Clear all data</button>
+      </div>
+      <p class="small muted" id="import-status"></p>
+    </div>
+
+    <div class="card">
+      <h2>Automatic sync</h2>
+      <p class="muted">Review sites block browsers from reading their pages directly, so automatic pulls use each site's official API from the included Node script. Run it on a schedule, then click “Load data/synced.json” (or just reload — the app picks it up automatically when served over http).</p>
+      <pre class="code">GOOGLE_PLACES_API_KEY=… YELP_API_KEY=… TRIPADVISOR_API_KEY=… \
+  node review-tracker/sync/sync.mjs</pre>
+      <p class="small muted">See <code>review-tracker/README.md</code> for how to get each key.</p>
+    </div>
+  </section>
+</main>
+
+<!-- Review editor -->
+<dialog id="review-dialog">
+  <form method="dialog" id="review-form">
+    <h2 id="review-dialog-title">Add review</h2>
+    <div class="grid-2">
+      <label>Site<select name="platform" required></select></label>
+      <label>Rating
+        <select name="rating" required>
+          <option value="5">5 ★</option><option value="4">4 ★</option><option value="3">3 ★</option>
+          <option value="2">2 ★</option><option value="1">1 ★</option>
+        </select>
+      </label>
+      <label>Reviewer<input name="author" placeholder="Name or handle"></label>
+      <label>Date<input name="date" type="date" required></label>
+    </div>
+    <label>Title<input name="title" placeholder="Optional"></label>
+    <label>Review text<textarea name="text" rows="5"></textarea></label>
+    <label>Link to review<input name="url" type="url" placeholder="https://…"></label>
+    <label>Tags<input name="tags" placeholder="service, food, view (comma separated)"></label>
+    <div class="grid-2">
+      <label class="check"><input type="checkbox" name="responded"> We responded</label>
+      <label>Internal note<input name="note" placeholder="Follow-up, who handled it…"></label>
+    </div>
+    <div class="btn-row end">
+      <button class="btn" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Snapshot editor -->
+<dialog id="snapshot-dialog">
+  <form method="dialog" id="snapshot-form">
+    <h2>Log current rating</h2>
+    <p class="muted small" id="snapshot-hint"></p>
+    <input type="hidden" name="platform">
+    <div class="grid-2">
+      <label>Overall rating<input name="rating" type="number" min="1" max="5" step="0.1" required></label>
+      <label>Total reviews<input name="count" type="number" min="0" step="1"></label>
+      <label>Ranking (optional)<input name="rank" placeholder="#3 of 555 in Clearwater"></label>
+      <label>Date<input name="date" type="date" required></label>
+    </div>
+    <div class="btn-row end">
+      <button class="btn" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>
