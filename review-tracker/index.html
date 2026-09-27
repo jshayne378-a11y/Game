@@ -14,6 +14,7 @@
     <div>
       <h1>Drift · Opal Sol</h1>
       <p class="sub">Review tracker — 400 Coronado Dr, Clearwater Beach, FL</p>
+      <p class="save-status" id="save-status" data-kind="local"></p>
     </div>
   </div>
   <div class="overall" id="overall"></div>
@@ -212,6 +213,17 @@
     <div class="btn-row end">
       <button class="btn" value="cancel" formnovalidate>Cancel</button>
       <button class="btn primary" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Confirmation -->
+<dialog id="confirm-dialog">
+  <form method="dialog">
+    <p id="confirm-message"></p>
+    <div class="btn-row end">
+      <button class="btn" value="cancel">Cancel</button>
+      <button class="btn danger" value="ok" id="confirm-ok">Delete</button>
     </div>
   </form>
 </dialog>

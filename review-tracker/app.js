@@ -63,8 +63,110 @@ function loadState() {
 let state = loadState();
 
 function save() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-  catch { toast('Could not save — browser storage is unavailable.'); }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* cloud copy may still save */ }
+  syncRemote();
+}
+
+/* ---------------- Cloud storage (when hosted on claude.ai) ----------------
+   Each review, snapshot and keyword is one document; site settings are one
+   more. Writes are diffed against the last saved copy so only changes go out. */
+
+const remote = { db: null, shadow: new Map(), queue: Promise.resolve(), readOnly: false };
+
+function stateDocs() {
+  const m = new Map();
+  for (const r of state.reviews) m.set(`reviews/${r.id}`, r);
+  for (const x of state.snapshots) m.set(`snapshots/${x.id}`, x);
+  for (const k of state.keywords) m.set(`keywords/${k.id}`, k);
+  m.set('meta/settings', { platforms: state.platforms, lastSyncedAt: state.lastSyncedAt });
+  return m;
+}
+
+function syncRemote() {
+  if (!remote.db || remote.readOnly) return;
+  const next = stateDocs();
+  const writes = [];
+  for (const [path, val] of next) {
+    const json = JSON.stringify(val);
+    if (remote.shadow.get(path) !== json) { writes.push([path, json]); remote.shadow.set(path, json); }
+  }
+  for (const path of [...remote.shadow.keys()]) {
+    if (!next.has(path)) { writes.push([path, null]); remote.shadow.delete(path); }
+  }
+  if (!writes.length) return;
+  setSaveStatus('saving');
+  remote.queue = remote.queue.then(async () => {
+    for (const [path, json] of writes) {
+      try {
+        const ref = remote.db.doc(path);
+        await (json == null ? ref.delete() : ref.set(JSON.parse(json)));
+      } catch (e) {
+        if (e?.code === 'invalid_argument') { remote.readOnly = true; toast('You can view this tracker but not change it.'); }
+        else if (e?.code === 'quota_exceeded') toast('Storage is full. Delete old reviews or snapshots to add more.');
+        else toast('A change could not be saved. Check your connection and try again.');
+        setSaveStatus('error');
+        return;
+      }
+    }
+    setSaveStatus('saved');
+  });
+}
+
+function setSaveStatus(kind) {
+  const el = $('#save-status');
+  if (!el) return;
+  el.dataset.kind = kind;
+  el.textContent = {
+    local: 'Saved in this browser',
+    saving: 'Saving…',
+    saved: 'Saved to your claude.ai account',
+    error: 'Some changes are not saved',
+  }[kind];
+}
+
+async function readAll(db, coll) {
+  const out = [];
+  let q = db.collection(coll).orderBy('id').limit(1000);
+  for (;;) {
+    const snap = await q.get();
+    snap.docs.forEach(d => out.push({ ...d.data(), id: d.id }));
+    if (snap.size < 1000) return out;
+    q = db.collection(coll).where('id', '>', out[out.length - 1].id).orderBy('id').limit(1000);
+  }
+}
+
+async function connectRemote() {
+  const db = await window.claude?.use?.('db');
+  if (!db) return;
+  try {
+    const [reviews, snapshots, keywords, meta] = await Promise.all([
+      readAll(db, 'reviews'), readAll(db, 'snapshots'), readAll(db, 'keywords'), db.doc('meta/settings').get(),
+    ]);
+    remote.db = db;
+    const cloudEmpty = !meta.exists && !reviews.length && !snapshots.length && !keywords.length;
+    if (cloudEmpty) {
+      // First visit: move whatever this browser already has into the cloud.
+      syncRemote();
+    } else {
+      const m = meta.exists ? meta.data() : {};
+      const localCopy = state;
+      state = {
+        platforms: Array.isArray(m.platforms) && m.platforms.length ? structuredClone(m.platforms) : localCopy.platforms,
+        reviews, snapshots, keywords,
+        lastSyncedAt: m.lastSyncedAt ?? null,
+      };
+      for (const def of DEFAULT_PLATFORMS) if (!platformById(def.id)) state.platforms.push({ ...def });
+      for (const r of state.reviews) { r.tags ||= []; r.rating = Number(r.rating); r.date ||= today(); }
+      for (const k of state.keywords) k.aliases ||= [];
+      for (const [path, val] of stateDocs()) remote.shadow.set(path, JSON.stringify(val));
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* ignore */ }
+      setSaveStatus('saved');
+      renderAll();
+    }
+  } catch (e) {
+    remote.db = null;
+    toast('Could not load your saved reviews. Showing the copy in this browser.');
+  }
 }
 
 /* ---------------- Helpers ---------------- */
@@ -790,7 +892,23 @@ function toCSV(rows, cols) {
   return [cols.join(','), ...rows.map(r => cols.map(c => cell(r[c])).join(','))].join('\n');
 }
 
-function download(name, content, type) {
+/** In-page confirmation (the hosted viewer blocks window.confirm). */
+function askConfirm(message, okLabel = 'Delete') {
+  const dlg = $('#confirm-dialog');
+  $('#confirm-message').textContent = message;
+  $('#confirm-ok').textContent = okLabel;
+  dlg.returnValue = '';
+  dlg.showModal();
+  return new Promise(resolve => dlg.addEventListener('close', () => resolve(dlg.returnValue === 'ok'), { once: true }));
+}
+
+async function download(name, content, type) {
+  const dl = await window.claude?.use?.('downloads');
+  if (dl) {
+    try { await dl.save({ filename: name, data: content }); toast(`Saved ${name}`); }
+    catch (e) { if (e?.code !== 'declined') toast('This file could not be saved here.'); }
+    return;
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([content], { type }));
   a.download = name;
@@ -827,7 +945,7 @@ document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', (
   try { sessionStorage.setItem('drift-tab', btn.dataset.tab); } catch { /* ignore */ }
 }));
 
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
   const t = e.target.closest('button');
   if (!t) return;
   const d = t.dataset;
@@ -840,7 +958,7 @@ document.addEventListener('click', e => {
     r.respondedDate = r.responded ? today() : null;
     save(); renderAll();
   } else if (d.del) {
-    if (confirm('Delete this review from the tracker?')) {
+    if (await askConfirm('Delete this review from the tracker?')) {
       state.reviews = state.reviews.filter(r => r.id !== d.del);
       save(); renderAll();
     }
@@ -868,7 +986,7 @@ document.addEventListener('click', e => {
     save(); renderAll();
   } else if (d.removePlatform) {
     const n = state.reviews.filter(r => r.platform === d.removePlatform).length;
-    if (confirm(`Remove this site${n ? ` and its ${n} tracked reviews` : ''}?`)) {
+    if (await askConfirm(`Remove this site${n ? ` and its ${n} tracked reviews` : ''}?`, 'Remove')) {
       state.platforms = state.platforms.filter(p => p.id !== d.removePlatform);
       state.reviews = state.reviews.filter(r => r.platform !== d.removePlatform);
       state.snapshots = state.snapshots.filter(s => s.platform !== d.removePlatform);
@@ -941,8 +1059,8 @@ $('#btn-export-csv').addEventListener('click', () => {
     toCSV(rows, ['platform', 'author', 'rating', 'date', 'title', 'text', 'url', 'tags', 'responded', 'respondedDate', 'note']),
     'text/csv');
 });
-$('#btn-reset').addEventListener('click', () => {
-  if (confirm('Delete all tracked reviews, ratings and site settings? Export first if you want a backup.')) {
+$('#btn-reset').addEventListener('click', async () => {
+  if (await askConfirm('Delete all tracked reviews, ratings, staff and site settings? Export first if you want a backup.', 'Delete everything')) {
     state = freshState();
     save(); renderAll();
   }
@@ -956,4 +1074,6 @@ try {
 } catch { /* ignore */ }
 
 renderAll();
-if (location.protocol.startsWith('http')) loadSynced({ silent: true });
+setSaveStatus('local');
+if (window.claude?.use) connectRemote();
+else if (location.protocol.startsWith('http')) loadSynced({ silent: true });
