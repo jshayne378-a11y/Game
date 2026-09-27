@@ -10,7 +10,16 @@ A small, dependency-free web app for keeping tabs on reviews of
   check, a combined score weighted by review count, and a "needs a response" queue
   (lowest ratings first).
 - **Reviews** — every tracked review in one list, with search and filters by site,
-  stars and response status. Mark reviews as responded, add tags and internal notes.
+  stars and response status; searching shows a positive/neutral/negative count for the
+  matches and highlights the word. Mark reviews as responded, add tags and notes.
+- **Staff & Mentions** — track servers, bartenders, dishes or any keyword and see
+  how many reviews mention them and how many of those were positive (4–5★),
+  neutral (3★) or negative (1–2★), with average rating and last mention. Add
+  nicknames/misspellings as aliases (e.g. "Kayla" + "Kaylah"), filter by time period,
+  site and role, and expand to read each matching review with the name highlighted.
+  Names written like "our server Kayla" or "Marco the bartender" are suggested
+  automatically. A quick keyword box gives the same breakdown for any word.
+  Matching is whole-word, so "Al" doesn't match "also".
 - **Trends** — rating over time per site, and review volume per month.
 - **Sites & Data** — turn sites on/off, edit listing URLs, add any other site,
   import CSV/JSON, export a backup.

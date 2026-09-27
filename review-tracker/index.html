@@ -22,6 +22,7 @@
 <nav class="tabs" role="tablist">
   <button class="tab active" data-tab="dashboard" role="tab">Dashboard</button>
   <button class="tab" data-tab="reviews" role="tab">Reviews</button>
+  <button class="tab" data-tab="mentions" role="tab">Staff &amp; Mentions</button>
   <button class="tab" data-tab="trends" role="tab">Trends</button>
   <button class="tab" data-tab="settings" role="tab">Sites &amp; Data</button>
 </nav>
@@ -68,6 +69,43 @@
     </div>
     <p class="muted" id="review-count"></p>
     <div id="review-list"></div>
+  </section>
+
+  <!-- STAFF & MENTIONS -->
+  <section id="tab-mentions" class="panel">
+    <div class="card">
+      <h2>Keyword check</h2>
+      <p class="muted small">Type a name or word to see how often it comes up in review titles and text, and how those reviews rated. 4–5★ counts as positive, 3★ as neutral, 1–2★ as negative. Whole words only, so “Al” won’t match “also”.</p>
+      <div class="toolbar">
+        <input type="search" id="m-quick" placeholder="e.g. Kayla, bartender, branzino, wait…">
+        <select id="m-period" aria-label="Time period">
+          <option value="">All time</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="365">Last 12 months</option>
+        </select>
+        <select id="m-platform" aria-label="Site"><option value="">All sites</option></select>
+      </div>
+      <div id="m-quick-result"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Tracked staff &amp; keywords</h2>
+        <select id="m-role-filter" aria-label="Filter by role"><option value="">All roles</option></select>
+      </div>
+      <form id="keyword-form" class="inline-form">
+        <input name="term" placeholder="Name or keyword (e.g. Kayla)" required>
+        <select name="role" aria-label="Role">
+          <option>Server</option><option>Bartender</option><option>Host</option><option>Manager</option>
+          <option>Chef</option><option>Menu item</option><option>Topic</option>
+        </select>
+        <input name="aliases" placeholder="Other spellings / nicknames (comma separated)">
+        <button class="btn primary">Track</button>
+      </form>
+      <div id="suggestions"></div>
+      <div id="keyword-list"></div>
+    </div>
   </section>
 
   <!-- TRENDS -->

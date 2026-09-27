@@ -39,6 +39,7 @@ function freshState() {
     platforms: DEFAULT_PLATFORMS.map(p => ({ ...p })),
     reviews: [],
     snapshots: [],
+    keywords: [],
     lastSyncedAt: null,
   };
 }
@@ -55,6 +56,7 @@ function loadState() {
   }
   s.reviews ||= [];
   s.snapshots ||= [];
+  s.keywords ||= [];
   return s;
 }
 
@@ -120,6 +122,7 @@ function renderAll() {
   renderStarBreakdown();
   renderPlatformFilters();
   renderReviews();
+  renderMentions();
   renderTrends();
   renderSettings();
 }
@@ -256,7 +259,15 @@ function filteredReviews() {
 
 function renderReviews() {
   const rs = filteredReviews();
-  $('#review-count').textContent = `${rs.length} of ${state.reviews.length} reviews`;
+  const q = $('#f-search').value.trim();
+  const re = q ? new RegExp(escRe(q), 'i') : null;
+  let summary = `${rs.length} of ${state.reviews.length} reviews`;
+  if (q && rs.length) {
+    const s = { total: rs.length, pos: 0, neu: 0, neg: 0 };
+    rs.forEach(r => s[sentimentOf(r)]++);
+    summary = `<strong>${rs.length}</strong> of ${state.reviews.length} reviews match “${esc(q)}” · avg ${(rs.reduce((a, r) => a + r.rating, 0) / rs.length).toFixed(1)}★ <span class="scounts inline">${sentimentCounts(s)}</span>`;
+  }
+  $('#review-count').innerHTML = summary;
   $('#review-list').innerHTML = rs.length ? rs.map(r => {
     const p = platformById(r.platform);
     const url = safeUrl(r.url);
@@ -269,8 +280,8 @@ function renderReviews() {
         <span class="spacer"></span>
         ${r.responded ? `<span class="pill">✓ Responded${r.respondedDate ? ` ${fmtDate(r.respondedDate)}` : ''}</span>` : `<span class="pill warn">Needs response</span>`}
       </div>
-      ${r.title ? `<h3>${esc(r.title)}</h3>` : ''}
-      ${r.text ? `<p>${esc(r.text)}</p>` : ''}
+      ${r.title ? `<h3>${highlight(r.title, re)}</h3>` : ''}
+      ${r.text ? `<p>${highlight(r.text, re)}</p>` : ''}
       ${r.note ? `<p class="note">Note: ${esc(r.note)}</p>` : ''}
       <div class="review-foot">
         ${(r.tags || []).map(t => `<span class="tag">#${esc(t)}</span>`).join('')}
@@ -282,6 +293,196 @@ function renderReviews() {
       </div>
     </article>`;
   }).join('') : `<div class="card empty">${state.reviews.length ? 'No reviews match these filters.' : 'No reviews tracked yet. Add one, import a CSV, or run the sync script.'}</div>`;
+}
+
+/* ---------------- Staff & keyword mentions ---------------- */
+
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Case-insensitive whole-word matcher for any of the given terms. */
+function termRegex(terms, flags = 'iu') {
+  const list = terms.map(t => t.trim()).filter(Boolean).sort((a, b) => b.length - a.length);
+  if (!list.length) return null;
+  return new RegExp(`(?<![\\p{L}\\p{N}])(?:${list.map(escRe).join('|')})(?![\\p{L}\\p{N}])`, flags);
+}
+
+const reviewBody = r => `${r.title || ''}\n${r.text || ''}`;
+
+const sentimentOf = r => r.rating >= 4 ? 'pos' : r.rating === 3 ? 'neu' : 'neg';
+
+function mentionScope() {
+  const days = Number($('#m-period').value);
+  const plat = $('#m-platform').value;
+  const cutoff = days ? new Date(Date.now() - days * 864e5).toISOString().slice(0, 10) : '';
+  return state.reviews.filter(r =>
+    (!plat || r.platform === plat) && (!cutoff || r.date >= cutoff) && platformById(r.platform)?.enabled);
+}
+
+function mentionStats(terms, reviews) {
+  const re = termRegex(terms);
+  const hits = re ? reviews.filter(r => re.test(reviewBody(r))) : [];
+  const s = { hits, total: hits.length, pos: 0, neu: 0, neg: 0, avg: 0, last: '' };
+  for (const r of hits) {
+    s[sentimentOf(r)]++;
+    s.avg += r.rating;
+    if (r.date > s.last) s.last = r.date;
+  }
+  if (s.total) s.avg /= s.total;
+  return s;
+}
+
+function sentimentBar(s) {
+  if (!s.total) return '';
+  const w = n => (100 * n / s.total).toFixed(1);
+  return `<div class="sbar" role="img" aria-label="${s.pos} positive, ${s.neu} neutral, ${s.neg} negative">
+    <span class="pos" style="width:${w(s.pos)}%"></span><span class="neu" style="width:${w(s.neu)}%"></span><span class="neg" style="width:${w(s.neg)}%"></span></div>`;
+}
+
+function sentimentCounts(s) {
+  return `<span class="sc pos">▲ ${s.pos} positive</span><span class="sc neu">● ${s.neu} neutral</span><span class="sc neg">▼ ${s.neg} negative</span>`;
+}
+
+/** Escape text and wrap matches of `re` in <mark>. */
+function highlight(text, re) {
+  if (!re || !text) return esc(text);
+  const g = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+  let out = '', i = 0;
+  for (const m of text.matchAll(g)) {
+    out += esc(text.slice(i, m.index)) + `<mark>${esc(m[0])}</mark>`;
+    i = m.index + m[0].length;
+  }
+  return out + esc(text.slice(i));
+}
+
+/** Short excerpt around the first match, with the match highlighted. */
+function excerptAround(text, re, radius = 110) {
+  const m = re && text.match(re);
+  if (!m) return esc(text.slice(0, radius * 2));
+  const start = Math.max(0, m.index - radius);
+  const end = Math.min(text.length, m.index + m[0].length + radius);
+  return (start ? '…' : '') + highlight(text.slice(start, end), re) + (end < text.length ? '…' : '');
+}
+
+function mentionReviewList(hits, re) {
+  return hits.sort((a, b) => b.date.localeCompare(a.date)).map(r => {
+    const p = platformById(r.platform);
+    return `<div class="mini">
+      <div class="line1">${stars(r.rating)} <strong>${esc(r.author || 'Anonymous')}</strong>
+        <span class="pill">${esc(p?.name || r.platform)}</span>
+        <span class="muted small">${fmtDate(r.date)}</span>
+        <button class="btn sm" data-edit="${esc(r.id)}" style="margin-left:auto">Open</button></div>
+      <div class="excerpt full">${r.title ? `<strong>${highlight(r.title, re)}</strong> — ` : ''}${excerptAround(r.text || '', re)}</div>
+    </div>`;
+  }).join('');
+}
+
+const openMentions = new Set();
+
+function renderMentions() {
+  // Site filter options
+  const mp = $('#m-platform'), cur = mp.value;
+  mp.innerHTML = `<option value="">All sites</option>` + enabledPlatforms().map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  mp.value = cur;
+
+  const scope = mentionScope();
+
+  // Quick check
+  const q = $('#m-quick').value.trim();
+  const qr = $('#m-quick-result');
+  if (!q) qr.innerHTML = '';
+  else {
+    const s = mentionStats([q], scope);
+    const tracked = state.keywords.some(k => [k.term, ...k.aliases].some(t => t.toLowerCase() === q.toLowerCase()));
+    qr.innerHTML = s.total ? `
+      <div class="mstat">
+        <div class="mstat-head"><strong>“${esc(q)}”</strong> in ${s.total} review${s.total === 1 ? '' : 's'} · avg ${s.avg.toFixed(1)}★
+          ${tracked ? '' : `<button class="btn sm" data-track-quick>+ Track this</button>`}</div>
+        ${sentimentBar(s)}<div class="scounts">${sentimentCounts(s)}</div>
+        <div class="mlist">${mentionReviewList(s.hits, termRegex([q]))}</div>
+      </div>` : `<p class="muted">No reviews mention “${esc(q)}”${scope.length < state.reviews.length ? ' in this period/site' : ''}.</p>`;
+  }
+
+  // Role filter
+  const rf = $('#m-role-filter'), rcur = rf.value;
+  const roles = [...new Set(state.keywords.map(k => k.role))].sort();
+  rf.innerHTML = `<option value="">All roles</option>` + roles.map(r => `<option>${esc(r)}</option>`).join('');
+  rf.value = roles.includes(rcur) ? rcur : '';
+
+  // Tracked keywords
+  const kws = state.keywords
+    .filter(k => !rf.value || k.role === rf.value)
+    .map(k => ({ k, s: mentionStats([k.term, ...k.aliases], scope) }))
+    .sort((a, b) => b.s.total - a.s.total || a.k.term.localeCompare(b.k.term));
+  $('#keyword-list').innerHTML = kws.length ? `<div class="klist">${kws.map(({ k, s }) => {
+    const open = openMentions.has(k.id) && s.total;
+    const pct = s.total ? Math.round(100 * s.pos / s.total) : null;
+    return `<div class="kitem">
+      <div class="krow">
+        <div class="kname"><strong>${esc(k.term)}</strong> <span class="pill">${esc(k.role)}</span>
+          ${k.aliases.length ? `<div class="small muted">also: ${k.aliases.map(esc).join(', ')}</div>` : ''}</div>
+        <div class="kbar">${s.total ? sentimentBar(s) + `<div class="scounts">${sentimentCounts(s)}</div>` : '<span class="muted small">No mentions yet</span>'}</div>
+        <div class="knums">${s.total ? `<strong>${s.total}</strong> mention${s.total === 1 ? '' : 's'}<br><span class="small muted">${pct}% positive · avg ${s.avg.toFixed(1)}★<br>last ${fmtDate(s.last)}</span>` : ''}</div>
+        <div class="kact">
+          ${s.total ? `<button class="btn sm" data-toggle-mention="${esc(k.id)}">${open ? 'Hide' : 'Show'} reviews</button>` : ''}
+          <button class="btn sm" data-edit-kw="${esc(k.id)}">Edit</button>
+          <button class="btn sm danger" data-del-kw="${esc(k.id)}">Remove</button>
+        </div>
+      </div>
+      ${open ? `<div class="mlist">${mentionReviewList(s.hits, termRegex([k.term, ...k.aliases]))}</div>` : ''}
+    </div>`;
+  }).join('')}</div>` : `<div class="empty">${state.keywords.length ? 'No keywords with this role.' : 'Add a server, bartender or any keyword above to track how reviews mention them.'}</div>`;
+
+  renderSuggestions();
+}
+
+/** Find likely staff names in review text, e.g. "our server Kayla" or "Marco the bartender". */
+const ROLE_WORDS = {
+  server: 'Server', waiter: 'Server', waitress: 'Server', bartender: 'Bartender', bartenders: 'Bartender',
+  mixologist: 'Bartender', host: 'Host', hostess: 'Host', manager: 'Manager', gm: 'Manager', chef: 'Chef',
+};
+const NOT_NAMES = new Set(['The', 'She', 'He', 'They', 'Our', 'We', 'It', 'This', 'That', 'Was', 'Is', 'And', 'But', 'Very', 'So', 'Also', 'Drift', 'Opal', 'Sol', 'Clearwater', 'Great', 'Amazing', 'Excellent', 'Thank', 'Thanks', 'Everyone', 'Everything', 'Service', 'Food', 'I']);
+
+function suggestStaff() {
+  const found = new Map();
+  const roleAlt = Object.keys(ROLE_WORDS).join('|');
+  const pats = [
+    // "server Kayla", "bartender, Marco", "server named Kayla", "server was Kayla"
+    new RegExp(`\\b(${roleAlt})\\b,?\\s+(?:named\\s+|was\\s+|is\\s+)?([A-Z][a-z]{1,14})\\b`, 'gi'),
+    // "Kayla, our server" / "Kayla was our bartender" / "Kayla the bartender"
+    new RegExp(`\\b([A-Z][a-z]{1,14}),?\\s+(?:was\\s+|is\\s+)?(?:our|the|my)\\s+(${roleAlt})\\b`, 'g'),
+  ];
+  for (const r of state.reviews) {
+    const text = reviewBody(r);
+    for (const [i, re] of pats.entries()) {
+      for (const m of text.matchAll(re)) {
+        const [roleWord, name] = i === 0 ? [m[1], m[2]] : [m[2], m[1]];
+        if (!/^[A-Z]/.test(name) || NOT_NAMES.has(name)) continue;
+        const key = name.toLowerCase();
+        const e = found.get(key) || { name, role: ROLE_WORDS[roleWord.toLowerCase()], ids: new Set() };
+        e.ids.add(r.id);
+        found.set(key, e);
+      }
+    }
+  }
+  const trackedTerms = new Set(state.keywords.flatMap(k => [k.term, ...k.aliases]).map(t => t.toLowerCase()));
+  return [...found.values()].filter(e => !trackedTerms.has(e.name.toLowerCase()))
+    .sort((a, b) => b.ids.size - a.ids.size).slice(0, 12);
+}
+
+function renderSuggestions() {
+  const sug = suggestStaff();
+  $('#suggestions').innerHTML = sug.length ? `<div class="suggest"><span class="small muted">Names spotted in reviews:</span>
+    ${sug.map(e => `<button class="btn sm" data-suggest="${esc(e.name)}" data-role="${esc(e.role)}">+ ${esc(e.name)} <span class="muted">(${esc(e.role.toLowerCase())}, ${e.ids.size})</span></button>`).join('')}</div>` : '';
+}
+
+function addKeyword(term, role, aliases = []) {
+  term = term.trim();
+  if (!term) return;
+  const existing = state.keywords.find(k => k.term.toLowerCase() === term.toLowerCase());
+  if (existing) { existing.role = role; existing.aliases = [...new Set([...existing.aliases, ...aliases])]; }
+  else state.keywords.push({ id: uid(), term, role, aliases, addedAt: today() });
+  save(); renderAll();
+  toast(`Tracking “${term}”`);
 }
 
 /* ---------------- Charts (inline SVG) ---------------- */
@@ -550,6 +751,11 @@ function mergeData(data) {
       else state.platforms.push(p);
     }
   }
+  for (const k of Array.isArray(data.keywords) ? data.keywords : []) {
+    if (k?.term && !state.keywords.some(x => x.term.toLowerCase() === String(k.term).toLowerCase())) {
+      state.keywords.push({ id: uid(), term: String(k.term), role: k.role || 'Topic', aliases: Array.isArray(k.aliases) ? k.aliases : [], addedAt: k.addedAt || today() });
+    }
+  }
   return { added, updated, snaps };
 }
 
@@ -638,6 +844,25 @@ document.addEventListener('click', e => {
       state.reviews = state.reviews.filter(r => r.id !== d.del);
       save(); renderAll();
     }
+  } else if (d.toggleMention) {
+    openMentions.has(d.toggleMention) ? openMentions.delete(d.toggleMention) : openMentions.add(d.toggleMention);
+    renderMentions();
+  } else if (d.delKw) {
+    state.keywords = state.keywords.filter(k => k.id !== d.delKw);
+    save(); renderAll();
+  } else if (d.editKw) {
+    const k = state.keywords.find(x => x.id === d.editKw);
+    const f = $('#keyword-form');
+    f.elements.term.value = k.term;
+    f.elements.role.value = k.role;
+    f.elements.aliases.value = k.aliases.join(', ');
+    f.dataset.editId = k.id;
+    f.querySelector('button').textContent = 'Save';
+    f.elements.term.focus();
+  } else if (d.suggest) {
+    addKeyword(d.suggest, d.role || 'Server');
+  } else if (d.trackQuick !== undefined) {
+    addKeyword($('#m-quick').value, 'Topic');
   } else if (d.delSnap) {
     state.snapshots = state.snapshots.filter(s => s.id !== d.delSnap);
     save(); renderAll();
@@ -669,6 +894,24 @@ $('#custom-platform').addEventListener('submit', e => {
   save(); renderAll();
   toast(`${name} added`);
 });
+
+$('#keyword-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const f = e.target;
+  const term = f.elements.term.value.trim();
+  const role = f.elements.role.value;
+  const aliases = f.elements.aliases.value.split(',').map(a => a.trim()).filter(Boolean);
+  if (f.dataset.editId) {
+    const k = state.keywords.find(x => x.id === f.dataset.editId);
+    if (k) Object.assign(k, { term, role, aliases });
+    delete f.dataset.editId;
+    f.querySelector('button').textContent = 'Track';
+    save(); renderAll();
+  } else addKeyword(term, role, aliases);
+  f.reset();
+});
+['#m-quick', '#m-period', '#m-platform', '#m-role-filter'].forEach(s =>
+  $(s).addEventListener('input', renderMentions));
 
 $('#btn-add').addEventListener('click', () => openReviewDialog(null, $('#f-platform').value));
 ['#f-search', '#f-platform', '#f-stars', '#f-status', '#f-sort'].forEach(s =>
