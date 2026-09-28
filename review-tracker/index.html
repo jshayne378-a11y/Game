@@ -153,9 +153,9 @@
 
     <div class="card">
       <h2>Import &amp; export</h2>
-      <p class="muted">Import a CSV (columns: <code>platform, author, rating, date, title, text, url</code>) or a JSON file exported from this app or produced by the sync script.</p>
+      <p class="muted">Import a CSV (columns: <code>platform, author, rating, date, title, text, url</code>), a JSON backup from this app, or your <strong>Google reviews export</strong>: the <code>reviews.json</code> file from Google Takeout → Google Business Profile. It brings in every Google review with its rating, date, text and whether you replied. You can pick several files at once. Reviews already in the tracker are skipped.</p>
       <div class="btn-row">
-        <label class="btn">Import file…<input type="file" id="import-file" accept=".json,.csv" hidden></label>
+        <label class="btn">Import file…<input type="file" id="import-file" accept=".json,.csv" multiple hidden></label>
         <button class="btn" id="btn-load-synced">Load data/synced.json</button>
         <button class="btn" id="btn-export-json">Export JSON</button>
         <button class="btn" id="btn-export-csv">Export CSV</button>

@@ -891,6 +891,28 @@ function normalizeDate(d) {
   return isNaN(dt) ? today() : dt.toISOString().slice(0, 10);
 }
 
+const GOOGLE_STARS = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };
+
+/** Convert a Google Business Profile export (Google Takeout reviews.json, or the
+    Business Profile API's reviews list) into the tracker's import shape. Other
+    JSON passes through unchanged. */
+function normalizeImport(data) {
+  const list = Array.isArray(data) ? data : data?.reviews;
+  if (!Array.isArray(list) || !list.some(r => typeof r?.starRating === 'string')) return data;
+  return {
+    reviews: list.filter(r => GOOGLE_STARS[r?.starRating]).map(r => ({
+      platform: 'google',
+      externalId: r.reviewId || r.name,
+      author: r.reviewer?.displayName || '',
+      rating: GOOGLE_STARS[r.starRating],
+      date: r.createTime,
+      text: r.comment || '',
+      responded: !!r.reviewReply,
+      respondedDate: r.reviewReply?.updateTime ? String(r.reviewReply.updateTime).slice(0, 10) : null,
+    })),
+  };
+}
+
 /** Merge reviews/snapshots from an import or sync file. Returns counts. */
 function mergeData(data) {
   let added = 0, updated = 0, snaps = 0;
@@ -913,6 +935,10 @@ function mergeData(data) {
     if (existing) {
       // Refresh content from source but keep the user's own tracking fields.
       for (const k of ['rating', 'title', 'text', 'url']) if (r[k]) existing[k] = r[k];
+      if (raw.responded === true && !existing.responded) {
+        existing.responded = true;
+        existing.respondedDate = raw.respondedDate || today();
+      }
       updated++;
     } else {
       const full = {
@@ -1125,16 +1151,21 @@ $('#btn-add').addEventListener('click', () => openReviewDialog(null, $('#f-platf
   $(s).addEventListener('input', renderReviews));
 
 $('#import-file').addEventListener('change', async e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const text = await file.text();
-  try {
-    const data = file.name.toLowerCase().endsWith('.csv') ? { reviews: parseCSV(text) } : JSON.parse(text);
-    const res = mergeData(data);
+  const files = [...e.target.files];
+  const total = { added: 0, updated: 0, snaps: 0 };
+  for (const file of files) {
+    try {
+      const text = await file.text();
+      const data = file.name.toLowerCase().endsWith('.csv') ? { reviews: parseCSV(text) } : normalizeImport(JSON.parse(text));
+      const res = mergeData(data);
+      for (const k in total) total[k] += res[k];
+    } catch (err) {
+      toast(`Could not import ${file.name}: ${err.message}`);
+    }
+  }
+  if (files.length) {
     save(); renderAll();
-    reportMerge(res, file.name);
-  } catch (err) {
-    toast(`Import failed: ${err.message}`);
+    reportMerge(total, files.length === 1 ? files[0].name : `${files.length} files`);
   }
   e.target.value = '';
 });
