@@ -279,3 +279,17 @@ mark { background: color-mix(in srgb, var(--star) 35%, transparent); color: inhe
   .kact { grid-column: 1 / -1; justify-content: flex-start; }
 }
 .suggest { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 12px; }
+
+/* Refresh */
+.top-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.refresh-box { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.refresh-btn { background: rgba(255,255,255,.12); color: var(--header-ink); border-color: rgba(255,255,255,.25); }
+.refresh-btn:hover { border-color: var(--header-ink); }
+.refresh-btn:disabled { opacity: .6; cursor: default; }
+.refresh-status { margin: 0; font-size: .75rem; opacity: .75; max-width: 280px; text-align: right; }
+@media (max-width: 600px) {
+  .top-right { align-items: flex-start; width: 100%; }
+  .refresh-box { justify-content: flex-start; }
+  .refresh-status { text-align: left; }
+}
+[hidden] { display: none !important; }

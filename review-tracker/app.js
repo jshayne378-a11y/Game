@@ -138,6 +138,11 @@ async function readAll(db, coll) {
 async function connectRemote() {
   const db = await window.claude?.use?.('db');
   if (!db) return;
+  await loadCloud(db);
+  if (remote.db) setupRefresh(db);
+}
+
+async function loadCloud(db) {
   try {
     const [reviews, snapshots, keywords, meta] = await Promise.all([
       readAll(db, 'reviews'), readAll(db, 'snapshots'), readAll(db, 'keywords'), db.doc('meta/settings').get(),
@@ -167,6 +172,90 @@ async function connectRemote() {
     remote.db = null;
     toast('Could not load your saved reviews. Showing the copy in this browser.');
   }
+}
+
+/* ---------------- Refresh button (hosted page only) ----------------
+   Tapping Refresh starts a saved Claude routine that checks the pull request
+   and looks up the latest ratings. The routine reports back by writing the
+   meta/refresh document, which this page watches. */
+
+const refresh = { mcp: null, doc: null, lastFinished: undefined, error: '' };
+const REFRESH_STALE_MS = 20 * 60 * 1000;
+
+async function setupRefresh(db) {
+  const mcp = await window.claude?.use?.('mcp');
+  if (!mcp) return;
+  refresh.mcp = mcp;
+  $('#refresh-box').hidden = false;
+  db.doc('meta/refresh').onSnapshot(snap => {
+    const d = snap.exists ? snap.data() : {};
+    refresh.doc = d;
+    const finished = d.status === 'done' || d.status === 'error' ? d.finishedAt : null;
+    if (refresh.lastFinished !== undefined && finished && finished !== refresh.lastFinished) {
+      toast(d.status === 'done' ? `Refresh finished: ${d.summary || 'up to date'}` : 'The refresh ran into a problem.');
+      loadCloud(db);
+    }
+    refresh.lastFinished = finished;
+    renderRefresh();
+  }, () => { $('#refresh-box').hidden = true; });
+}
+
+function refreshBusy() {
+  const d = refresh.doc || {};
+  const since = d.status === 'running' ? d.startedAt : d.status === 'requested' ? d.requestedAt : null;
+  return !!since && Date.now() - new Date(since).getTime() < REFRESH_STALE_MS;
+}
+
+function fmtWhen(iso) {
+  const dt = new Date(iso);
+  return isNaN(dt) ? '' : dt.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function renderRefresh() {
+  const d = refresh.doc || {};
+  const btn = $('#btn-refresh');
+  const busy = refreshBusy();
+  btn.disabled = busy || !d.triggerId;
+  btn.textContent = busy ? 'Refreshing…' : '↻ Refresh';
+  let text;
+  if (refresh.error) text = refresh.error;
+  else if (!d.triggerId) text = 'Refresh is not set up for this page.';
+  else if (busy && d.status === 'running') text = `Checking the PR and ratings (started ${fmtWhen(d.startedAt)})`;
+  else if (busy) text = `Requested ${fmtWhen(d.requestedAt)}. This takes a few minutes.`;
+  else if (d.status === 'done') text = `Last refresh ${fmtWhen(d.finishedAt)}: ${d.summary || 'up to date'}`;
+  else if (d.status === 'error') text = `Last refresh had a problem: ${d.summary || 'unknown error'}`;
+  else text = 'Checks the pull request and the latest ratings.';
+  $('#refresh-status').textContent = text;
+}
+
+const REFRESH_ERRORS = {
+  not_in_manifest: 'This page is not allowed to start a refresh. Allow Claude Code Remote for this page, then try again.',
+  server_not_connected: 'Claude Code Remote is not available for your account here, so Refresh cannot start.',
+  needs_reauth: 'Reconnect Claude Code Remote in claude.ai Settings → Connectors, then try again.',
+  blocked_by_policy: 'Your organization’s settings block this page from starting a refresh.',
+  approval_required: 'Your organization requires approval for this action, which this page cannot request.',
+  server_unavailable: 'Claude could not be reached. Wait a minute, then try again.',
+};
+
+async function requestRefresh() {
+  const d = refresh.doc || {};
+  if (!d.triggerId || refreshBusy()) return;
+  const ref = remote.db.doc('meta/refresh');
+  const previous = { status: d.status || 'idle' };
+  refresh.error = '';
+  try {
+    await ref.update({ status: 'requested', requestedAt: new Date().toISOString() });
+    await refresh.mcp.callTool('Claude Code Remote', 'fire_trigger', {
+      trigger_id: d.triggerId,
+      text: `Refresh requested from the tracker page at ${new Date().toISOString()}.`,
+    });
+    toast('Refresh requested. Results show up here in a few minutes.');
+  } catch (e) {
+    refresh.error = e?.code === 'tool_error' ? `Refresh could not start: ${e.message}`
+      : REFRESH_ERRORS[e?.code] || 'Refresh could not start. Try again in a minute.';
+    try { await ref.update(previous); } catch { /* keep the error message */ }
+  }
+  renderRefresh();
 }
 
 /* ---------------- Helpers ---------------- */
@@ -247,7 +336,7 @@ function renderOverall() {
     return;
   }
   const score = weight ? weighted / weight : plain.reduce((a, b) => a + b, 0) / plain.length;
-  const detail = weight ? `${weight.toLocaleString()} reviews across ${sites} site${sites > 1 ? 's' : ''}` : `average across ${sites} sites`;
+  const detail = weight ? `${weight.toLocaleString()} reviews across ${sites} site${sites > 1 ? 's' : ''}` : `average across ${sites} site${sites > 1 ? 's' : ''}`;
   el.innerHTML = `<span class="big">${score.toFixed(2)}</span><span class="lbl">${stars(score)}<br>${detail}</span>`;
 }
 
@@ -1050,6 +1139,7 @@ $('#import-file').addEventListener('change', async e => {
   e.target.value = '';
 });
 
+$('#btn-refresh').addEventListener('click', requestRefresh);
 $('#btn-load-synced').addEventListener('click', () => loadSynced());
 $('#btn-export-json').addEventListener('click', () =>
   download(`drift-reviews-${today()}.json`, JSON.stringify(state, null, 2), 'application/json'));
